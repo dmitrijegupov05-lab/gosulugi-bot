@@ -1,5 +1,6 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+import asyncio
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import random, string
 
 TOKEN = "8642894333:AAEVcW8lJ6sCm1kN0yn2rrVECdDbQgUYgck"
@@ -11,7 +12,7 @@ def gen_fake():
         'pass': ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     }
 
-def start(bot, update):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🏦 Банки", callback_data='banks')],
         [InlineKeyboardButton("🏛 Госуслуги", callback_data='gosuslugi')],
@@ -25,15 +26,15 @@ def start(bot, update):
         [InlineKeyboardButton("📦 Комбо-пакет", callback_data='combo')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
+    await update.message.reply_text(
         "🔥 *AkkauntGuru* — доступы ко всему!\nВыбери категорию:",
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
 
-def buy(bot, update):
+async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     
     package = query.data
     prices = {
@@ -60,15 +61,22 @@ def buy(bot, update):
     fake1 = gen_fake()
     fake2 = gen_fake() if package == 'combo' else None
     
-    context = update.callback_query.message.chat_id
     if fake2:
+        context.user_data['fake_data'] = fake1
+        context.user_data['fake_data2'] = fake2
+    else:
+        context.user_data['fake_data'] = fake1
+    
+    keyboard = [[InlineKeyboardButton("💰 Оплатить криптой", callback_data='pay')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if package == 'combo':
         text = (
             f"📌 *{name}*\n\n"
             f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
             f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`\n\n"
             f"💰 Цена: {price}₽ (~{round(price/90, 2)} USDT)\n"
-            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)\n\n"
-            f"После оплаты нажми кнопку ниже."
+            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)"
         )
     else:
         text = (
@@ -76,38 +84,50 @@ def buy(bot, update):
             f"Логин: `{fake1['login']}`\n"
             f"Пароль: `{fake1['pass']}`\n\n"
             f"💰 Цена: {price}₽ (~{round(price/90, 2)} USDT)\n"
-            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)\n\n"
-            f"После оплаты нажми кнопку ниже."
+            f"Переведи на кошелёк:\n`{WALLET}`\nСеть: Ethereum (ERC20)"
         )
     
-    keyboard = [[InlineKeyboardButton("💰 Оплатить криптой", callback_data='pay')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(
+    await query.edit_message_text(
         text=text,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
 
-def pay(bot, update):
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
-    query.edit_message_text(
-        text="✅ *Оплата подтверждена!*\n\n"
-             "Твои данные активированы.\n"
-             "⚠️ Если не заходит — подожди 5-10 минут.",
+    await query.answer()
+    
+    fake1 = context.user_data.get('fake_data', gen_fake())
+    fake2 = context.user_data.get('fake_data2')
+    
+    if fake2:
+        text = (
+            "✅ *Оплата подтверждена!*\n\n"
+            "Твои данные активированы:\n"
+            f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
+            f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`"
+        )
+    else:
+        text = (
+            "✅ *Оплата подтверждена!*\n\n"
+            "Твои данные активированы:\n"
+            f"Логин: `{fake1['login']}`\n"
+            f"Пароль: `{fake1['pass']}`"
+        )
+    
+    await query.edit_message_text(
+        text=text,
         parse_mode='Markdown'
     )
 
-def main():
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
-    dp.add_handler(CallbackQueryHandler(pay, pattern='^pay$'))
+async def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler('start', start))
+    app.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
+    app.add_handler(CallbackQueryHandler(pay, pattern='^pay$'))
     
     print("✅ Бот с 10 услугами запущен!")
-    updater.start_polling()
-    updater.idle()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
