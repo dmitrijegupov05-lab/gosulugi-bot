@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-import random, string
+import random
+import string
 
 TOKEN = "8642894333:AAEVcW8lJ6sCm1kN0yn2rrVECdDbQgUYgck"
 WALLET = "0x44698049ad0be92e567cdfe9c5aa86d70047f73e"
@@ -105,8 +106,7 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Твои данные активированы:\n"
             f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
             f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`\n\n"
-            "⚠️ Если не заходит — подожди 5-10 минут.\n"
-            "Поддержка: @support_akaunt"
+            "⚠️ Если не заходит — подожди 5-10 минут."
         )
     else:
         text = (
@@ -114,8 +114,7 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Твои данные активированы:\n"
             f"Логин: `{fake1['login']}`\n"
             f"Пароль: `{fake1['pass']}`\n\n"
-            "⚠️ Если не заходит — подожди 5-10 минут.\n"
-            "Поддержка: @support_akaunt"
+            "⚠️ Если не заходит — подожди 5-10 минут."
         )
     
     await query.edit_message_text(
@@ -123,10 +122,14 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-app = Application.builder().token(TOKEN).build()
-app.add_handler(CommandHandler('start', start))
-app.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
-app.add_handler(CallbackQueryHandler(pay, pattern='^pay_'))
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler('start', start))
+    app.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
+    app.add_handler(CallbackQueryHandler(pay, pattern='^pay_'))
+    
+    print("✅ Бот с 10 услугами запущен!")
+    app.run_polling()
 
-print("✅ Бот с 10 услугами запущен!")
-app.run_polling()
+if __name__ == "__main__":
+    main()
