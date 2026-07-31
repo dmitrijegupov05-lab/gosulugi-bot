@@ -1,8 +1,8 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import random, string
 
-TOKEN = "СЮДА_ТВОЙ_ТОКЕН"
+TOKEN = "8642894333:AAEVcW8lJ6sCm1kN0yn2rrVECdDbQgUYgck"
 WALLET = "0x44698049ad0be92e567cdfe9c5aa86d70047f73e"
 
 def gen_fake():
@@ -11,7 +11,7 @@ def gen_fake():
         'pass': ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     }
 
-def start(bot, update):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🏦 Банки", callback_data='banks')],
         [InlineKeyboardButton("🏛 Госуслуги", callback_data='gosuslugi')],
@@ -22,19 +22,18 @@ def start(bot, update):
         [InlineKeyboardButton("🎮 Игровые аккаунты", callback_data='games')],
         [InlineKeyboardButton("📧 Почтовые сервисы", callback_data='email')],
         [InlineKeyboardButton("💼 VPN/Прокси", callback_data='vpn')],
-        [InlineKeyboardButton("📦 Комбо-пакет (всё сразу)", callback_data='combo')]
+        [InlineKeyboardButton("📦 Комбо-пакет", callback_data='combo')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        "🔥 *AkkauntGuru* — доступы ко всему!\n"
-        "Выбери категорию:",
+    await update.message.reply_text(
+        "🔥 *AkkauntGuru* — доступы ко всему!\nВыбери категорию:",
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
 
-def buy(bot, update):
+async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     
     package = query.data
     prices = {
@@ -87,15 +86,15 @@ def buy(bot, update):
             f"После оплаты нажми кнопку ниже."
         )
     
-    query.edit_message_text(
+    await query.edit_message_text(
         text=text,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
 
-def pay(bot, update):
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     
     fake1 = context.user_data.get('fake_data', gen_fake())
     fake2 = context.user_data.get('fake_data2')
@@ -107,7 +106,7 @@ def pay(bot, update):
             f"🔹 Логин 1: `{fake1['login']}` | Пароль: `{fake1['pass']}`\n"
             f"🔹 Логин 2: `{fake2['login']}` | Пароль: `{fake2['pass']}`\n\n"
             "⚠️ Если не заходит — подожди 5-10 минут.\n"
-            "Поддержка: @support_akaunt (отвечаем в течение 24ч)"
+            "Поддержка: @support_akaunt"
         )
     else:
         text = (
@@ -116,19 +115,18 @@ def pay(bot, update):
             f"Логин: `{fake1['login']}`\n"
             f"Пароль: `{fake1['pass']}`\n\n"
             "⚠️ Если не заходит — подожди 5-10 минут.\n"
-            "Поддержка: @support_akaunt (отвечаем в течение 24ч)"
+            "Поддержка: @support_akaunt"
         )
     
-    query.edit_message_text(
+    await query.edit_message_text(
         text=text,
         parse_mode='Markdown'
     )
 
-updater = Updater(TOKEN)
-updater.dispatcher.add_handler(CommandHandler('start', start))
-updater.dispatcher.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
-updater.dispatcher.add_handler(CallbackQueryHandler(pay, pattern='^pay_'))
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler('start', start))
+app.add_handler(CallbackQueryHandler(buy, pattern='^(banks|gosuslugi|cards|exchanges|marketplaces|social|games|email|vpn|combo)$'))
+app.add_handler(CallbackQueryHandler(pay, pattern='^pay_'))
 
 print("✅ Бот с 10 услугами запущен!")
-updater.start_polling()
-updater.idle()
+app.run_polling()
