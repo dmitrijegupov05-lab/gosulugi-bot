@@ -2,21 +2,13 @@ import telebot
 import time
 import sqlite3
 import threading
-import random
 from datetime import datetime
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = "8972482804:AAEwte6YdsUwyUXHpcyiLOX_eNxoeaj83v4"  # ЗАМЕНИТЬ
+TOKEN = "8972482804:AAEwte6YdsUwyUXHpcyiLOX_eNxoeaj83v4"
 bot = telebot.TeleBot(TOKEN)
 
 WALLET = "0x44698049ad0be92e567cdfe9c5aa86d70047ff3e"
-
-# ПРЕМИУМ-ОФОРМЛЕНИЕ
-STICKERS = {
-    "welcome": "CAACAgIAAxkBAAE...",  # МОЖНО ВСТАВИТЬ СВОЙ СТИКЕР
-    "payment": "CAACAgIAAxkBAAE...",
-    "confirm": "CAACAgIAAxkBAAE..."
-}
 
 PRODUCTS = {
     "gosuslugi": {
@@ -48,7 +40,7 @@ PRODUCTS = {
 conn = sqlite3.connect('premium.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users 
-             (id INTEGER PRIMARY KEY, step TEXT, product TEXT, ref TEXT, created TEXT)''')
+             (id INTEGER PRIMARY KEY, step TEXT, product TEXT, created TEXT)''')
 conn.commit()
 
 def premium_menu(uid):
@@ -73,7 +65,6 @@ def start(m):
     uid = m.chat.id
     c.execute("INSERT OR REPLACE INTO users (id, step, created) VALUES (?, 'menu', ?)", (uid, datetime.now()))
     conn.commit()
-    bot.send_sticker(uid, STICKERS['welcome'])
     premium_menu(uid)
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -107,7 +98,6 @@ def callback(call):
         f"*(Сеть ERC-20 / USDT)*\n\n"
         f"⏳ *ПОСЛЕ ОПЛАТЫ НАЖМИ КНОПКУ НИЖЕ*",
         parse_mode="Markdown", reply_markup=keyboard)
-    bot.send_sticker(uid, STICKERS['payment'])
 
 @bot.callback_query_handler(func=lambda call: call.data == "confirm_pay")
 def confirm_pay(call):
@@ -124,12 +114,10 @@ def confirm_pay(call):
         "Это ускорит обработку!\n"
         "▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀",
         parse_mode="Markdown")
-    bot.send_sticker(uid, STICKERS['confirm'])
     
     c.execute("UPDATE users SET step='wait' WHERE id=?", (uid,))
     conn.commit()
     
-    # АВТОБАН через 15 минут
     def ban_user():
         time.sleep(900)
         try:
@@ -145,24 +133,10 @@ def cancel(call):
     bot.delete_message(uid, call.message.message_id)
     bot.send_message(uid, "❌ Заказ отменён. /start для нового заказа.")
 
-@bot.message_handler(commands=['admin'])
-def admin(m):
-    uid = m.chat.id
-    # ЗАМЕНИТЕ НА СВОЙ ID
-    if uid != 123456789:
-        return
-    c.execute("SELECT id, product, created FROM users WHERE step='wait'")
-    rows = c.fetchall()
-    msg = "👥 *ОЖИДАЮТ ПЛАТЕЖ:*\n"
-    for r in rows:
-        msg += f"ID: {r[0]} | Товар: {r[1]} | {r[2]}\n"
-    bot.send_message(uid, msg, parse_mode="Markdown")
-
 @bot.message_handler(func=lambda m: True)
 def fallback(m):
     bot.send_message(m.chat.id, "🔹 Используйте /start для доступа в меню")
 
-# ЗАПУСК С ЗАЩИТОЙ ОТ ОШИБОК
 if __name__ == "__main__":
     while True:
         try:
